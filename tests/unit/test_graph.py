@@ -5,7 +5,9 @@ from typing import Any
 import httpx
 import pytest
 
+from graph_context.config import Settings
 from graph_context.graph.client import GraphClient
+from graph_context.graph.memberships import build_membership_map
 from graph_context.graph.models import UserRecord
 from graph_context.graph.relationships import build_manager_map
 from graph_context.graph.users import normalize_user_items
@@ -77,6 +79,31 @@ async def test_reverse_manager_map_handles_missing_manager() -> None:
     assert failures == 0
     assert manager_map["report"].id == "manager"
     assert "solo" not in manager_map
+
+
+@pytest.mark.asyncio
+async def test_optional_role_and_administrative_unit_memberships_are_merged() -> None:
+    class FakeGraph:
+        async def all_items(self, path: str) -> list[dict[str, Any]]:
+            if "directoryRole" in path:
+                return [{"id": "role", "displayName": "Global Reader"}]
+            if "administrativeUnit" in path:
+                return [{"id": "unit", "displayName": "West"}]
+            return [{"id": "group", "displayName": "Engineering"}]
+
+    settings = Settings(
+        AZURE_TENANT_ID="tenant",
+        AZURE_CLIENT_ID="client",
+        SYNC_DIRECTORY_ROLES=True,
+        SYNC_ADMINISTRATIVE_UNITS=True,
+    )
+    membership_map, failures = await build_membership_map(
+        FakeGraph(),
+        [UserRecord(id="user")],
+        settings,  # type: ignore[arg-type]
+    )
+    assert failures == 0
+    assert {membership.id for membership in membership_map["user"]} == {"group", "role", "unit"}
 
 
 def test_limited_directory_objects_are_normalized() -> None:

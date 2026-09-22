@@ -40,7 +40,11 @@ another user's transitive memberships in the implemented default behavior.
 Add `Directory.Read.All` only if the tenant requires broader directory object
 properties. Add `GroupMember.Read.Hidden` only to read hidden group membership.
 Directory roles and administrative units are disabled by default because their
-permissions are more sensitive; enable them only after reviewing tenant policy.
+permissions are more sensitive. Set `SYNC_DIRECTORY_ROLES=true` and/or
+`SYNC_ADMINISTRATIVE_UNITS=true` to retrieve those relationship types through
+typed `transitiveMemberOf` calls. Review the required directory permissions and
+tenant policy before enabling them; failures remain partial and are reported in
+the synchronization summary.
 
 Configure `AZURE_CREDENTIAL_MODE` as `managed_identity`, `certificate`,
 `client_secret`, or `default`. `default` uses `DefaultAzureCredential` and is
