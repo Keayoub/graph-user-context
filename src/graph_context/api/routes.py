@@ -8,12 +8,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from graph_context.api.dependencies import require_assertion
 from graph_context.auth.obo import OboTokenService
 from graph_context.auth.token_validation import TokenValidator
 from graph_context.config import Settings
+from graph_context.jobs.status import read_status
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -76,6 +77,15 @@ def build_router(settings: Settings, validator: TokenValidator, obo: OboTokenSer
         except ValueError as exc:
             raise HTTPException(status_code=503, detail="API configuration is incomplete") from exc
         return {"status": "ready"}
+
+    @api.get("/admin/sync-status")
+    async def sync_status(x_admin_key: str | None = Header(default=None)) -> dict[str, Any]:
+        if not settings.admin_api_key or x_admin_key != settings.admin_api_key.get_secret_value():
+            raise HTTPException(status_code=404, detail="Not found")
+        status = read_status(settings.sync_status_path)
+        if status is None:
+            raise HTTPException(status_code=503, detail="No synchronization status is available")
+        return status
 
     @api.get("/api/user-context")
     async def user_context(assertion: str = Depends(require_assertion)) -> dict[str, Any]:

@@ -8,10 +8,12 @@ from graph_context.api.routes import build_router
 from graph_context.auth.obo import OboTokenService
 from graph_context.auth.token_validation import TokenValidator
 from graph_context.config import Settings, get_settings
+from graph_context.telemetry import configure_telemetry
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    configure_telemetry(settings)
     docs_url = "/docs" if settings.api_docs_enabled else None
     redoc_url = "/redoc" if settings.api_docs_enabled else None
     application = FastAPI(

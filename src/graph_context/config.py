@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     allowed_tenant: str | None = Field(default=None, alias="ALLOWED_TENANT")
     expected_audience: str | None = Field(default=None, alias="EXPECTED_TOKEN_AUDIENCE")
     api_docs_enabled: bool = Field(default=False, alias="API_DOCS_ENABLED")
+    appinsights_connection_string: SecretStr | None = Field(
+        default=None, alias="APPLICATIONINSIGHTS_CONNECTION_STRING"
+    )
+    sync_status_path: str = Field(default="output/sync-status.json", alias="SYNC_STATUS_PATH")
+    admin_api_key: SecretStr | None = Field(default=None, alias="ADMIN_API_KEY")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     @field_validator("tenant_id", "client_id")

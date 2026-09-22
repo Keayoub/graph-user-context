@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 from graph_context.auth.app_credentials import build_app_credential
@@ -14,6 +15,7 @@ from graph_context.graph.memberships import build_membership_map
 from graph_context.graph.models import SyncSummary, UserRecord
 from graph_context.graph.relationships import build_direct_report_map, build_manager_map
 from graph_context.graph.users import USER_FIELDS, get_users
+from graph_context.jobs.status import write_status
 from graph_context.search.client import build_search_client
 from graph_context.search.sync import sync_documents
 
@@ -32,6 +34,7 @@ def _write_delta(path: Path, value: str | None) -> None:
 
 async def synchronize(settings: Settings, *, full: bool = False) -> SyncSummary:
     settings.validate_sync()
+    started_at = datetime.now(UTC)
     credential = build_app_credential(settings)
     graph = GraphClient(
         credential,
@@ -86,6 +89,17 @@ async def synchronize(settings: Settings, *, full: bool = False) -> SyncSummary:
         else:
             indexed, deleted, indexing_failures = 0, 0, 0
         _write_delta(delta_path, final_delta)
+        user_ids = {user.id for user in users}
+        users_without_manager = sum(user.manager is None for user in enriched)
+        users_without_memberships = sum(
+            settings.sync_memberships and not user.memberships for user in enriched
+        )
+        orphaned_direct_reports = sum(
+            report.id not in user_ids
+            for user in enriched
+            for report in user.direct_reports
+            if report.id
+        )
         summary = SyncSummary(
             users_seen=len(users),
             users_indexed=indexed,
@@ -93,12 +107,52 @@ async def synchronize(settings: Settings, *, full: bool = False) -> SyncSummary:
             relationship_failures=relationship_failures,
             membership_failures=membership_failures,
             indexing_failures=indexing_failures,
+            graph_requests=graph.requests,
+            graph_retries=graph.retries,
+            graph_throttles=graph.throttles,
+            users_without_manager=users_without_manager,
+            users_without_memberships=users_without_memberships,
+            orphaned_direct_reports=orphaned_direct_reports,
             delta_link=final_delta,
         )
         logger.info(
-            "Tenant synchronization complete: %s", summary.model_dump(exclude={"delta_link"})
+            "sync_status=%s users_seen=%s users_indexed=%s users_deleted=%s "
+            "graph_retries=%s graph_throttles=%s relationship_failures=%s "
+            "membership_failures=%s indexing_failures=%s",
+            "succeeded"
+            if not (relationship_failures or membership_failures or indexing_failures)
+            else "degraded",
+            summary.users_seen,
+            summary.users_indexed,
+            summary.users_deleted,
+            summary.graph_retries,
+            summary.graph_throttles,
+            summary.relationship_failures,
+            summary.membership_failures,
+            summary.indexing_failures,
+        )
+        write_status(
+            settings.sync_status_path,
+            summary=summary,
+            started_at=started_at,
+            finished_at=datetime.now(UTC),
+            status=(
+                "succeeded"
+                if not (relationship_failures or membership_failures or indexing_failures)
+                else "degraded"
+            ),
         )
         return summary
+    except Exception as exc:
+        logger.exception("sync_status=failed error_type=%s", type(exc).__name__)
+        write_status(
+            settings.sync_status_path,
+            started_at=started_at,
+            finished_at=datetime.now(UTC),
+            status="failed",
+            error=type(exc).__name__,
+        )
+        raise
     finally:
         await graph.close()
         await credential.close()

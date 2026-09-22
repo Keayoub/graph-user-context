@@ -46,6 +46,9 @@ class GraphClient:
         self.max_retries = max_retries
         self.client = http_client or httpx.AsyncClient(timeout=httpx.Timeout(timeout))
         self._owns_client = http_client is None
+        self.requests = 0
+        self.retries = 0
+        self.throttles = 0
 
     async def close(self) -> None:
         if self._owns_client:
@@ -57,6 +60,7 @@ class GraphClient:
             token = await self.credential.get_token("https://graph.microsoft.com/.default")
             request_id = str(uuid.uuid4())
             async with self.semaphore:
+                self.requests += 1
                 response = await self.client.get(
                     url,
                     headers={
@@ -70,6 +74,8 @@ class GraphClient:
                 return cast(dict[str, Any], response.json())
 
             retryable = response.status_code == 429 or 500 <= response.status_code <= 599
+            if response.status_code == 429:
+                self.throttles += 1
             if not retryable or attempt >= self.max_retries:
                 graph_request_id = response.headers.get("request-id")
                 raise GraphRequestError(
@@ -78,6 +84,7 @@ class GraphClient:
                     graph_request_id,
                 )
             delay = self._retry_delay(response, attempt)
+            self.retries += 1
             logger.warning(
                 "Graph retry status=%s attempt=%s delay=%.2f request_id=%s",
                 response.status_code,

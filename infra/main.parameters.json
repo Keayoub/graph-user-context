@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "graph-context-prod" },
+    "tenantId": { "value": "replace-with-tenant-id" },
+    "apiIdentityResourceId": { "value": "replace-with-api-managed-identity-resource-id" },
+    "syncIdentityResourceId": { "value": "replace-with-sync-managed-identity-resource-id" },
+    "containerImage": { "value": "replace-with-your-registry/graph-user-context:latest" },
+    "searchServiceName": { "value": "replace-with-search-service" },
+    "keyVaultName": { "value": "replace-with-key-vault" },
+    "alertEmail": { "value": "replace-with-operator@example.com" }
+  }
+}

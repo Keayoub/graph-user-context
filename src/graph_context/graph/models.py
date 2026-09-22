@@ -88,4 +88,10 @@ class SyncSummary(BaseModel):
     relationship_failures: int = 0
     membership_failures: int = 0
     indexing_failures: int = 0
+    graph_requests: int = 0
+    graph_retries: int = 0
+    graph_throttles: int = 0
+    users_without_manager: int = 0
+    users_without_memberships: int = 0
+    orphaned_direct_reports: int = 0
     delta_link: str | None = None
