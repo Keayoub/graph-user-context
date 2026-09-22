@@ -82,7 +82,11 @@ def build_router(settings: Settings, validator: TokenValidator, obo: OboTokenSer
     async def sync_status(x_admin_key: str | None = Header(default=None)) -> dict[str, Any]:
         if not settings.admin_api_key or x_admin_key != settings.admin_api_key.get_secret_value():
             raise HTTPException(status_code=404, detail="Not found")
-        status = read_status(settings.sync_status_path)
+        status = read_status(
+            settings.sync_status_path,
+            blob_url=settings.sync_status_blob_url,
+            managed_identity_client_id=settings.client_id or None,
+        )
         if status is None:
             raise HTTPException(status_code=503, detail="No synchronization status is available")
         return status

@@ -141,6 +141,8 @@ async def synchronize(settings: Settings, *, full: bool = False) -> SyncSummary:
                 if not (relationship_failures or membership_failures or indexing_failures)
                 else "degraded"
             ),
+            blob_url=settings.sync_status_blob_url,
+            managed_identity_client_id=settings.client_id or None,
         )
         return summary
     except Exception as exc:
@@ -151,6 +153,8 @@ async def synchronize(settings: Settings, *, full: bool = False) -> SyncSummary:
             finished_at=datetime.now(UTC),
             status="failed",
             error=type(exc).__name__,
+            blob_url=settings.sync_status_blob_url,
+            managed_identity_client_id=settings.client_id or None,
         )
         raise
     finally:

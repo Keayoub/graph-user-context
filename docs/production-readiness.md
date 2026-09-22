@@ -16,8 +16,8 @@ This checklist covers the work remaining after the core sync and OBO API impleme
 ## 2. Deploy with managed identity
 
 The initial Container Apps scaffold is in `infra/main.bicep`. It creates the API,
-an hourly sync job, Application Insights, Log Analytics, Search data-plane access,
-Key Vault secret references, and two starter alerts. Replace the values in
+an hourly sync job, Application Insights, Log Analytics, a private status blob,
+Search data-plane access, Key Vault secret references, and starter alerts. Replace the values in
 `infra/main.parameters.json` and deploy at resource-group scope:
 
 ```powershell
@@ -45,7 +45,8 @@ Secrets User` for its OBO secret and admin key.
 - [ ] Record correlation IDs and Graph request IDs without logging access tokens or sensitive directory payloads.
 - [ ] Define a runbook for replaying a full sync and recovering a lost or invalid delta link.
 
-The API exposes the latest redacted sync result at `GET /admin/sync-status` when
+The API and sync job share the latest redacted sync result through a private Blob
+Storage object. The API exposes it at `GET /admin/sync-status` when
 `ADMIN_API_KEY` is configured and supplied as `X-Admin-Key`. The response includes
 counts for missing memberships and orphaned direct-report relationships; it never
 includes directory payloads or delta URLs.

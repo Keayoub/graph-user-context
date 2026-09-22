@@ -15,8 +15,10 @@ var logAnalyticsName = '${environmentName}-logs'
 var appInsightsName = '${environmentName}-insights'
 var apiName = '${environmentName}-api'
 var syncJobName = '${environmentName}-sync'
+var statusStorageName = take('${toLower(replace(environmentName, '-', ''))}status', 24)
 var searchIndexDataContributorRoleId = '8ebe5a00-799e-43f5-93ac-24380c5d7c4d'
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 var apiPrincipalId = reference(apiIdentityResourceId, '2023-01-31', 'Full').principalId
 var syncPrincipalId = reference(syncIdentityResourceId, '2023-01-31', 'Full').principalId
 var apiIdentity = { '${apiIdentityResourceId}': {} }
@@ -39,6 +41,22 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
   }
+}
+
+resource statusStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: statusStorageName
+  location: location
+  sku: { name: 'Standard_ZRS' }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: false
+    minimumTlsVersion: 'TLS1_2'
+  }
+}
+
+resource statusContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  name: '${statusStorage.name}/default/operational'
+  properties: { publicAccess: 'None' }
 }
 
 resource environment 'Microsoft.App/managedEnvironments@2023-05-01' = {
@@ -91,6 +109,9 @@ resource api 'Microsoft.App/containerApps@2023-05-01' = {
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+            { name: 'AZURE_TENANT_ID', value: tenantId }
+            { name: 'AZURE_CLIENT_ID', value: reference(apiIdentityResourceId, '2023-01-31', 'Full').clientId }
+            { name: 'SYNC_STATUS_BLOB_URL', value: 'https://${statusStorage.name}.blob.${az.environment().suffixes.storage}/operational/sync-status.json' }
             { name: 'OBO_CLIENT_SECRET', secretRef: 'obo-client-secret' }
             { name: 'ADMIN_API_KEY', secretRef: 'admin-api-key' }
             { name: 'API_DOCS_ENABLED', value: 'false' }
@@ -127,7 +148,7 @@ resource syncJob 'Microsoft.App/jobs@2023-05-01' = {
             { name: 'AZURE_SEARCH_ENDPOINT', value: 'https://${search.name}.search.windows.net' }
             { name: 'AZURE_SEARCH_INDEX_NAME', value: searchIndexName }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-            { name: 'SYNC_STATUS_PATH', value: '/tmp/sync-status.json' }
+            { name: 'SYNC_STATUS_BLOB_URL', value: 'https://${statusStorage.name}.blob.${az.environment().suffixes.storage}/operational/sync-status.json' }
           ]
         }
       ]
@@ -151,6 +172,26 @@ resource apiKeyVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = 
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
     principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiStatusStorageRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(statusStorage.id, api.id, storageBlobDataContributorRoleId)
+  scope: statusStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource syncStatusStorageRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(statusStorage.id, syncJob.id, storageBlobDataContributorRoleId)
+  scope: statusStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
+    principalId: syncPrincipalId
     principalType: 'ServicePrincipal'
   }
 }

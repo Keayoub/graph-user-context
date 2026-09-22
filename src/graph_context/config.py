@@ -54,6 +54,7 @@ class Settings(BaseSettings):
         default=None, alias="APPLICATIONINSIGHTS_CONNECTION_STRING"
     )
     sync_status_path: str = Field(default="output/sync-status.json", alias="SYNC_STATUS_PATH")
+    sync_status_blob_url: str | None = Field(default=None, alias="SYNC_STATUS_BLOB_URL")
     admin_api_key: SecretStr | None = Field(default=None, alias="ADMIN_API_KEY")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
