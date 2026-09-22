@@ -21,12 +21,12 @@ Included:
 - delta sync with removal handling via `@removed`
 - Azure AI Search indexing and index provisioning
 - protected OBO API with audience validation and delegated Graph access
+- Azure Container Apps deployment scaffolding with managed identities, Key Vault, and private status storage
+- Application Insights instrumentation, structured sync health metrics, alert rules, and redacted admin status reporting
 - typed configuration and unit tests
 
 Not a core requirement yet:
-- production Azure deployment templates
 - full live-tenant validation in a real environment
-- advanced telemetry, alerting, and audit dashboards
 - document-level authorization beyond separate Search access control
 
 ## Quick start
@@ -71,17 +71,15 @@ Endpoints:
 - `GET /health`
 - `GET /ready`
 - protected `GET /api/user-context`
+- protected `GET /admin/sync-status` when `ADMIN_API_KEY` is configured
 
-## Production gaps to close next
+## Remaining production work
 
-The highest-value remaining work is not new app logic; it is operational maturity:
+The remaining work is environment validation and governance:
 
 - live validation against a real tenant
-- Azure deployment scaffolding
 - RBAC and secret configuration review for production
-- Application Insights and structured sync health metrics
-- alerting for Graph throttling, failed syncs, or Search write issues
-- admin reporting for drift, missing memberships, and orphaned relationships
+- document-level authorization beyond manager and membership relationships
 
 ## Quality checks
 
