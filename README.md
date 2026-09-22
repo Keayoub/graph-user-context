@@ -10,6 +10,7 @@ This repository contains a tenant sync job and a protected user-context API for 
 The two paths are intentionally separate. Manager relationships are organizational metadata, not document authorization.
 
 See [docs/architecture.md](docs/architecture.md) for a compact architecture view.
+See [docs/production-readiness.md](docs/production-readiness.md) for the prioritized next-step checklist.
 
 ## Current scope
 
